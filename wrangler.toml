@@ -1,0 +1,26 @@
+name = "ginemishi-kun"
+main = "src/index.ts"
+compatibility_date = "2025-05-08"
+
+[[queues.producers]]
+queue = "vps-jobs"
+binding = "VPS_QUEUE"
+
+[[queues.consumers]]
+queue = "vps-jobs"
+max_batch_size = 1
+max_batch_timeout = 30
+
+[triggers]
+crons = ["0 * * * *"]
+
+[vars]
+# Non-secret environment variables can be set here.
+# Secrets should be added via `wrangler secret put`.
+
+# DISCORD_PUBLIC_KEY = ""
+# CONOHA_TENANT_ID = ""
+# CONOHA_USERNAME = ""
+# CONOHA_IDENTITY_ENDPOINT = ""
+# CONOHA_COMPUTE_ENDPOINT = ""
+# CONOHA_IMAGE_ENDPOINT = ""
