@@ -12,7 +12,7 @@ export async function getToken(env: Env): Promise<string> {
       },
     }),
   })
-  if (!res.ok) throw new Error(`ConoHa auth failed: ${res.status}`)
+  if (!res.ok) throw new Error(`ConoHa auth failed: ${res.status} ${await res.text()}`)
   const data = await res.json<{ access: { token: { id: string } } }>()
   return data.access.token.id
 }

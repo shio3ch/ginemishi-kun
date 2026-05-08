@@ -41,4 +41,11 @@ describe('getToken', () => {
     expect(body.auth.passwordCredentials.password).toBe('pass')
     expect(body.auth.tenantId).toBe('tenant-123')
   })
+
+  it('認証失敗時にエラーをスローする', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('Unauthorized', { status: 401 })
+    )
+    await expect(getToken(mockEnv)).rejects.toThrow('ConoHa auth failed: 401')
+  })
 })
