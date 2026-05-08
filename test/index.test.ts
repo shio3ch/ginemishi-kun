@@ -27,7 +27,17 @@ function makeDiscordRequest(body: object): Request {
   })
 }
 
+/**
+ * POST /interactions — Discord Interaction エンドポイントの統合テスト
+ * テスト観点:
+ *   - PING (type:1) に対して即座に PONG (type:1) を返すこと（Discord の疎通確認）
+ *   - スラッシュコマンド (type:2) に対して Deferred Response (type:5) を返すこと
+ *   - 署名検証失敗時は 401 を返し、それ以上の処理をしないこと
+ *
+ * verify / consumer / cron はモック済み（ユニット境界での統合テスト）
+ */
 describe('POST /interactions', () => {
+  /** PING: Discord がエンドポイントの生存確認に送る type:1 は即時 PONG で応答すること */
   it('PING (type:1) に対して PONG (type:1) を返す', async () => {
     const req = makeDiscordRequest({ type: 1 })
     const ctx = createExecutionContext()
@@ -38,6 +48,7 @@ describe('POST /interactions', () => {
     expect(json.type).toBe(1)
   })
 
+  /** /start コマンド: VPS 起動ジョブをエンキューし、3 秒制約内に type:5 で即応すること */
   it('/start コマンドで type:5 を返す', async () => {
     const req = makeDiscordRequest({
       type: 2,
@@ -53,6 +64,7 @@ describe('POST /interactions', () => {
     expect(json.type).toBe(5)
   })
 
+  /** /stop コマンド: VPS 停止ジョブをエンキューし、3 秒制約内に type:5 で即応すること */
   it('/stop コマンドで type:5 を返す', async () => {
     const req = makeDiscordRequest({
       type: 2,
@@ -67,6 +79,7 @@ describe('POST /interactions', () => {
     expect(json.type).toBe(5)
   })
 
+  /** セキュリティ: 署名検証失敗時は 401 を返し、コマンド処理には進まないこと */
   it('署名検証失敗時は 401 を返す', async () => {
     const { verifyDiscordSignature } = await import('../src/discord/verify')
     vi.mocked(verifyDiscordSignature).mockResolvedValueOnce(false)

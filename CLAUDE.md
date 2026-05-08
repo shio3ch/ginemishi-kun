@@ -31,6 +31,25 @@ npm run types     # Env 型定義を自動生成 (wrangler types → worker-conf
 npx vitest run test/consumer.test.ts
 ```
 
+## テストコードのコメント規則
+
+テストファイルには以下のコメントを必ず記載すること。
+
+- **`describe` ブロック**: JSDoc コメント（`/** ... */`）で「何をテストするか」「主要な観点」を記載する
+- **`it` ブロック**: 1行 JSDoc コメントで「どのシナリオか」「なぜその検証が必要か」を記載する
+
+```typescript
+/**
+ * getToken — ConoHa Keystone API からトークンを取得する関数
+ * テスト観点: 正常取得・リクエスト内容の正確性・失敗時のエラー伝播
+ */
+describe('getToken', () => {
+  /** 正常系: レスポンスの access.token.id がそのまま返ること */
+  it('ConoHa Keystone からトークンを取得する', async () => {
+```
+
+ソースコードへのコメントは原則書かない（通常ルールに従う）。テストコードのみこのルールを適用する。
+
 ## 環境変数
 
 機密情報は `wrangler secret put <KEY>` で登録し、コードには含めない。`Env` 型は `npm run types` で自動生成される `worker-configuration.d.ts` を参照する。

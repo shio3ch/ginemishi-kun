@@ -41,9 +41,19 @@ const mockEnv = {
   VPS_QUEUE: { send: vi.fn().mockResolvedValue(undefined) },
 } as unknown as Env
 
+/**
+ * processQueue — Queue から受け取ったジョブを処理し、ステートマシンへ委譲する Consumer
+ * テスト観点:
+ *   - action に応じた正しいステートマシン関数が呼ばれること
+ *   - タイムアウト（10分超）したジョブは即通知して終了すること
+ *   - requeue=true のとき 30 秒遅延で再エンキューされること
+ *   - 再エンキュー時に serverId / imageId が次ジョブに引き継がれること
+ *   - 処理後は必ず ack() が呼ばれること
+ */
 describe('processQueue', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
+  /** action: 'stop' のジョブは processStop に委譲されること */
   it('stop ジョブは processStop を呼ぶ', async () => {
     const msg = makeMockMessage(makeJob({ action: 'stop', state: 'stopping' }))
     await processQueue([msg], mockEnv)
@@ -51,6 +61,7 @@ describe('processQueue', () => {
     expect(msg.ack).toHaveBeenCalled()
   })
 
+  /** action: 'start' のジョブは processStart に委譲されること */
   it('start ジョブは processStart を呼ぶ', async () => {
     const msg = makeMockMessage(makeJob({ action: 'start', state: 'starting' }))
     await processQueue([msg], mockEnv)
@@ -58,6 +69,7 @@ describe('processQueue', () => {
     expect(msg.ack).toHaveBeenCalled()
   })
 
+  /** タイムアウト: エンキューから 10 分以上経過したジョブはスキップして Discord に警告すること */
   it('タイムアウト済みジョブはエラー通知してスキップする', async () => {
     const old = new Date(Date.now() - 11 * 60 * 1000).toISOString()
     const msg = makeMockMessage(makeJob({ enqueuedAt: old }))
@@ -71,6 +83,7 @@ describe('processQueue', () => {
     expect(msg.ack).toHaveBeenCalled()
   })
 
+  /** 再エンキュー: requeue=true のとき nextState・imageId を引き継いで 30 秒後に再送すること */
   it('requeue=true のとき VPS_QUEUE.send を delaySeconds=30 で呼ぶ', async () => {
     vi.mocked(processStop).mockResolvedValue({ requeue: true, nextState: 'imaging', imageId: 'img-001' })
     const job = makeJob({ action: 'stop', state: 'stopping' })
@@ -83,6 +96,7 @@ describe('processQueue', () => {
     expect(msg.ack).toHaveBeenCalled()
   })
 
+  /** 再エンキュー: start の requeue=true では serverId が次ジョブに引き継がれること（新規作成時のIDを維持するため） */
   it('start requeue=true のとき serverId を引き継ぐ', async () => {
     vi.mocked(processStart).mockResolvedValue({ requeue: true, nextState: 'starting', serverId: 'new-srv-id' })
     const job = makeJob({ action: 'start', state: 'starting', serverId: undefined })

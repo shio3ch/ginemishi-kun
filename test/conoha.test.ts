@@ -19,9 +19,14 @@ const mockEnv = {
 const TOKEN = 'tok-test'
 const SERVER_ID = 'srv-abc'
 
+/**
+ * getToken — ConoHa Keystone v2 API でパスワード認証しトークンを取得する関数
+ * テスト観点: 正常取得・リクエスト内容（URL/ボディ）の正確性・認証失敗時のエラー伝播
+ */
 describe('getToken', () => {
   beforeEach(() => { vi.restoreAllMocks() })
 
+  /** 正常系: レスポンスの access.token.id がそのまま返り値になること */
   it('ConoHa Keystone からトークンを取得する', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
@@ -37,6 +42,7 @@ describe('getToken', () => {
     expect(token).toBe('tok-abc123')
   })
 
+  /** リクエスト内容: 正しい URL・credentials・tenantId が送信されること */
   it('正しいリクエストボディで POST する', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
@@ -53,6 +59,7 @@ describe('getToken', () => {
     expect(body.auth.tenantId).toBe('tenant-123')
   })
 
+  /** 異常系: 4xx/5xx レスポンス時にエラーをスローすること（呼び出し元でハンドリングできるよう） */
   it('認証失敗時にエラーをスローする', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response('Unauthorized', { status: 401 })
@@ -61,9 +68,14 @@ describe('getToken', () => {
   })
 })
 
+/**
+ * getServerStatus — 指定サーバーの現在ステータスを取得する関数
+ * テスト観点: API レスポンスから status フィールドが正しく抽出されること
+ */
 describe('getServerStatus', () => {
   beforeEach(() => { vi.restoreAllMocks() })
 
+  /** 正常系: server.status がそのまま返ること */
   it('サーバーのステータスを返す', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
@@ -80,9 +92,14 @@ describe('getServerStatus', () => {
   })
 })
 
+/**
+ * createServer — イメージとフレーバーを指定してサーバーを新規作成する関数
+ * テスト観点: 作成完了後に新サーバーの ID が返ること
+ */
 describe('createServer', () => {
   beforeEach(() => { vi.restoreAllMocks() })
 
+  /** 正常系: 202 レスポンスから server.id が返ること */
   it('サーバーを作成して ID を返す', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
@@ -101,9 +118,14 @@ describe('createServer', () => {
   })
 })
 
+/**
+ * stopServer — OpenStack の os-stop アクションでサーバーをシャットダウンする関数
+ * テスト観点: 正しいエンドポイントに os-stop ペイロードが送信されること
+ */
 describe('stopServer', () => {
   beforeEach(() => { vi.restoreAllMocks() })
 
+  /** リクエスト内容: /servers/{id}/action に { "os-stop": null } が送信されること */
   it('os-stop アクションを送信する', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response('', { status: 202 })
@@ -119,9 +141,14 @@ describe('stopServer', () => {
   })
 })
 
+/**
+ * deleteServer — サーバーを完全削除する関数
+ * テスト観点: DELETE メソッドで正しいエンドポイントにリクエストが送信されること
+ */
 describe('deleteServer', () => {
   beforeEach(() => { vi.restoreAllMocks() })
 
+  /** リクエスト内容: DELETE /servers/{id} が送信されること */
   it('サーバー削除リクエストを送信する', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(null, { status: 204 })
@@ -137,9 +164,14 @@ describe('deleteServer', () => {
   })
 })
 
+/**
+ * getServerList — 全サーバーの詳細一覧を取得する関数（Cron で起動中サーバーを検出するために使用）
+ * テスト観点: 全サーバーが配列で返ること・/servers/detail エンドポイントが使われること
+ */
 describe('getServerList', () => {
   beforeEach(() => { vi.restoreAllMocks() })
 
+  /** 正常系: servers 配列がそのまま返り、/servers/detail が呼ばれること */
   it('サーバー一覧を返す', async () => {
     const servers = [
       { id: 'srv-1', status: 'ACTIVE', created: '2026-05-08T00:00:00Z' },
@@ -160,9 +192,14 @@ describe('getServerList', () => {
 
 const IMAGE_ID = 'img-xyz'
 
+/**
+ * createImage — 指定サーバーのスナップショットイメージを作成する関数
+ * テスト観点: 作成完了後に新イメージの ID が返ること
+ */
 describe('createImage', () => {
   beforeEach(() => { vi.restoreAllMocks() })
 
+  /** 正常系: 201 レスポンスから image.id が返ること */
   it('イメージを作成して ID を返す', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
@@ -179,9 +216,14 @@ describe('createImage', () => {
   })
 })
 
+/**
+ * getImageStatus — イメージの現在ステータスを取得する関数（saving → active を polling するために使用）
+ * テスト観点: API レスポンスから status フィールドが正しく抽出されること
+ */
 describe('getImageStatus', () => {
   beforeEach(() => { vi.restoreAllMocks() })
 
+  /** 正常系: image.status がそのまま返ること */
   it('イメージのステータスを返す', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(
