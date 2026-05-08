@@ -1,5 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { verifyEd25519 } from '../src/discord/verify'
+import { notifyFollowup, notifyChannel } from '../src/discord/notify'
+import type { VpsJob } from '../src/queue/types'
 
 describe('verifyEd25519', () => {
   it('有効な署名を受け入れる', async () => {
@@ -44,5 +46,47 @@ describe('verifyEd25519', () => {
       pubKeyHex
     )
     expect(result).toBe(false)
+  })
+})
+
+const mockJob: VpsJob = {
+  action: 'start',
+  state: 'starting',
+  interactionToken: 'test-token',
+  channelId: 'test-channel',
+  enqueuedAt: new Date().toISOString(),
+}
+
+const mockEnv = {
+  DISCORD_APPLICATION_ID: 'app-123',
+  DISCORD_BOT_TOKEN: 'bot-token',
+} as unknown as Env
+
+describe('notifyFollowup', () => {
+  it('Discord Followup API を呼び出す', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('{}', { status: 200 })
+    )
+    await notifyFollowup(mockEnv, mockJob, '✅ 起動しました')
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/webhooks/app-123/test-token/messages/@original'),
+      expect.objectContaining({ method: 'PATCH' })
+    )
+    fetchSpy.mockRestore()
+  })
+})
+
+describe('notifyChannel', () => {
+  it('Discord Channel Webhook API を呼び出す', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('{}', { status: 200 })
+    )
+    const envWithChannel = { ...mockEnv, DISCORD_NOTIFY_CHANNEL_ID: 'ch-456' } as unknown as Env
+    await notifyChannel(envWithChannel, '⚠️ 起動しっぱなし警告')
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining('/channels/ch-456/messages'),
+      expect.objectContaining({ method: 'POST' })
+    )
+    fetchSpy.mockRestore()
   })
 })
