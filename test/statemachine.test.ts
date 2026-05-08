@@ -57,16 +57,23 @@ describe('processStop - stopping ステート', () => {
 describe('processStop - imaging ステート', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
-  it('イメージが active でない場合は { requeue: true, nextState: "imaging" } を返す', async () => {
+  it('イメージが active でない場合は imageId を含めて { requeue: true, nextState: "imaging" } を返す', async () => {
     vi.mocked(getImageStatus).mockResolvedValue('saving')
     const result = await processStop(mockEnv, makeJob('imaging', { imageId: 'img-001' }))
-    expect(result).toEqual({ requeue: true, nextState: 'imaging' })
+    expect(result).toEqual({ requeue: true, nextState: 'imaging', imageId: 'img-001' })
+  })
+
+  it('imageId がない場合は createImage を呼んで imageId を返す', async () => {
+    vi.mocked(getImageStatus).mockResolvedValue('saving')
+    const result = await processStop(mockEnv, makeJob('imaging'))
+    expect(createImage).toHaveBeenCalled()
+    expect(result).toEqual({ requeue: true, nextState: 'imaging', imageId: 'img-new' })
   })
 
   it('イメージが active の場合は { requeue: true, nextState: "deleting" } を返す', async () => {
     vi.mocked(getImageStatus).mockResolvedValue('active')
     const result = await processStop(mockEnv, makeJob('imaging', { imageId: 'img-001' }))
-    expect(result).toEqual({ requeue: true, nextState: 'deleting' })
+    expect(result).toEqual({ requeue: true, nextState: 'deleting', imageId: 'img-001' })
   })
 })
 
@@ -75,7 +82,7 @@ describe('processStop - deleting ステート', () => {
 
   it('削除完了後に Discord 通知を送り { requeue: false } を返す', async () => {
     const result = await processStop(mockEnv, makeJob('deleting'))
-    expect(notifyFollowup).toHaveBeenCalled()
+    expect(notifyFollowup).toHaveBeenCalledWith(mockEnv, expect.anything(), '✅ VPS を停止・保存・削除しました')
     expect(result).toEqual({ requeue: false })
   })
 })

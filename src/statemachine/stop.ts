@@ -4,7 +4,7 @@ import { createImage, getImageStatus } from '../conoha/image'
 import { notifyFollowup } from '../discord/notify'
 import type { VpsJob, VpsState } from '../queue/types'
 
-type StopResult = { requeue: true; nextState: VpsState } | { requeue: false }
+export type StopResult = { requeue: true; nextState: VpsState; imageId?: string } | { requeue: false }
 
 export async function processStop(env: Env, job: VpsJob): Promise<StopResult> {
   const token = await getToken(env)
@@ -20,8 +20,8 @@ export async function processStop(env: Env, job: VpsJob): Promise<StopResult> {
     case 'imaging': {
       const imageId = job.imageId ?? await createImage(env, token, job.serverId!)
       const status = await getImageStatus(env, token, imageId)
-      if (status === 'active') return { requeue: true, nextState: 'deleting' }
-      return { requeue: true, nextState: 'imaging' }
+      if (status === 'active') return { requeue: true, nextState: 'deleting', imageId }
+      return { requeue: true, nextState: 'imaging', imageId }
     }
 
     case 'deleting': {
