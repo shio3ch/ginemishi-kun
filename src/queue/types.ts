@@ -1,4 +1,4 @@
-export type VpsAction = 'start' | 'stop' | 'status'
+export type VpsAction = 'start' | 'stop'
 export type VpsState = 'starting' | 'stopping' | 'imaging' | 'deleting' | 'done'
 
 export type VpsJob = {

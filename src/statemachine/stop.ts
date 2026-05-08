@@ -11,9 +11,9 @@ export async function processStop(env: Env, job: VpsJob): Promise<StopResult> {
 
   switch (job.state) {
     case 'stopping': {
-      await stopServer(env, token, job.serverId!)
       const status = await getServerStatus(env, token, job.serverId!)
       if (status === 'SHUTOFF') return { requeue: true, nextState: 'imaging' }
+      await stopServer(env, token, job.serverId!)
       return { requeue: true, nextState: 'stopping' }
     }
 
