@@ -12,12 +12,16 @@ export async function handleScheduled(env: Env): Promise<void> {
     if (server.status !== 'ACTIVE') continue
 
     const uptime = Date.now() - new Date(server.created).getTime()
-    if (uptime >= TWELVE_HOURS_MS) {
+    if (uptime < TWELVE_HOURS_MS) continue
+
+    try {
       await notifyChannel(
         env,
         `⚠️ **VPS が12時間以上起動しています**（ID: \`${server.id}\`）\n` +
           '30分後に自動停止は行いません。不要であれば `/stop` で停止してください。'
       )
+    } catch (err) {
+      console.error(`Failed to notify for server ${server.id}:`, err)
     }
   }
 }
