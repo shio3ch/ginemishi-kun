@@ -1,11 +1,2 @@
-import { defineWorkersConfig } from '@cloudflare/vitest-pool-workers/config'
-
-export default defineWorkersConfig({
-  test: {
-    poolOptions: {
-      workers: {
-        wrangler: { configPath: './wrangler.toml' },
-      },
-    },
-  },
-})
+// This file intentionally left minimal - see vitest.config.mts for actual config
+export {}
