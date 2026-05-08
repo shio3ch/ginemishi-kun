@@ -123,7 +123,7 @@ describe('deleteServer', () => {
 
   it('サーバー削除リクエストを送信する', async () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response('', { status: 204 })
+      new Response(null, { status: 204 })
     )
     const envWithCompute = {
       ...mockEnv,
@@ -133,5 +133,26 @@ describe('deleteServer', () => {
     const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
     expect(url).toContain(`/servers/${SERVER_ID}`)
     expect((init as RequestInit).method).toBe('DELETE')
+  })
+})
+
+describe('getServerList', () => {
+  beforeEach(() => { vi.restoreAllMocks() })
+
+  it('サーバー一覧を返す', async () => {
+    const servers = [
+      { id: 'srv-1', status: 'ACTIVE', created: '2026-05-08T00:00:00Z' },
+      { id: 'srv-2', status: 'SHUTOFF', created: '2026-05-07T00:00:00Z' },
+    ]
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ servers }), { status: 200 })
+    )
+    const envWithCompute = {
+      ...mockEnv,
+      CONOHA_COMPUTE_ENDPOINT: 'https://compute.example.com/v2/tenant',
+    } as unknown as Env
+    const result = await getServerList(envWithCompute, TOKEN)
+    expect(result).toEqual(servers)
+    expect(fetchSpy.mock.calls[0][0]).toContain('/servers/detail')
   })
 })
