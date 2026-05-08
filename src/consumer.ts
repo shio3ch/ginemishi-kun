@@ -1,9 +1,12 @@
 import { processStop } from './statemachine/stop'
 import { processStart } from './statemachine/start'
 import { notifyFollowup } from './discord/notify'
-import type { VpsJob } from './queue/types'
+import type { VpsJob, VpsState } from './queue/types'
 
 type Message = { body: VpsJob; ack(): void; retry(): void }
+type RequeueResult = { requeue: true; nextState: VpsState; serverId?: string; imageId?: string }
+type DoneResult = { requeue: false }
+type ProcessResult = RequeueResult | DoneResult
 
 export async function processQueue(
   messages: Message[],
@@ -19,24 +22,30 @@ export async function processQueue(
       continue
     }
 
-    let result: { requeue: boolean; nextState?: VpsJob['state']; serverId?: string; imageId?: string }
+    let result: ProcessResult
 
-    if (job.action === 'stop') {
-      result = await processStop(env, job)
-    } else if (job.action === 'start') {
-      result = await processStart(env, job)
-    } else {
+    try {
+      if (job.action === 'stop') {
+        result = await processStop(env, job)
+      } else if (job.action === 'start') {
+        result = await processStart(env, job)
+      } else {
+        msg.ack()
+        continue
+      }
+    } catch (err) {
+      await notifyFollowup(env, job, `❌ エラーが発生しました: ${err instanceof Error ? err.message : String(err)}`)
       msg.ack()
       continue
     }
 
-    if (result.requeue && result.nextState) {
+    if (result.requeue) {
       await env.VPS_QUEUE.send(
         {
           ...job,
           state: result.nextState,
-          ...('serverId' in result ? { serverId: result.serverId } : {}),
-          ...('imageId' in result ? { imageId: result.imageId } : {}),
+          ...(result.serverId != null ? { serverId: result.serverId } : {}),
+          ...(result.imageId != null ? { imageId: result.imageId } : {}),
         },
         { delaySeconds: 30 }
       )
