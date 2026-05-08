@@ -103,7 +103,7 @@ describe('processStart - starting ステート', () => {
       enqueuedAt: new Date().toISOString(),
     }
     const result = await processStart(mockEnv, job)
-    expect(result).toEqual({ requeue: true, nextState: 'starting' })
+    expect(result).toEqual({ requeue: true, nextState: 'starting', serverId: 'srv-existing' })
   })
 
   it('ACTIVE の場合は Discord 通知を送り { requeue: false } を返す', async () => {
@@ -136,6 +136,6 @@ describe('processStart - starting ステート', () => {
     }
     const result = await processStart(mockEnv, job)
     expect(createServer).toHaveBeenCalled()
-    expect(result).toEqual({ requeue: true, nextState: 'starting' })
+    expect(result).toEqual({ requeue: true, nextState: 'starting', serverId: 'new-srv-id' })
   })
 })

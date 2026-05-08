@@ -3,7 +3,7 @@ import { createServer, getServerStatus } from '../conoha/server'
 import { notifyFollowup } from '../discord/notify'
 import type { VpsJob, VpsState } from '../queue/types'
 
-export type StartResult = { requeue: true; nextState: VpsState; serverId?: string } | { requeue: false }
+export type StartResult = { requeue: true; nextState: VpsState; serverId: string } | { requeue: false }
 
 export async function processStart(env: Env, job: VpsJob): Promise<StartResult> {
   const token = await getToken(env)
@@ -16,5 +16,5 @@ export async function processStart(env: Env, job: VpsJob): Promise<StartResult> 
     return { requeue: false }
   }
 
-  return { requeue: true, nextState: 'starting' }
+  return { requeue: true, nextState: 'starting', serverId }
 }
