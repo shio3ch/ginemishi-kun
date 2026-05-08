@@ -6,6 +6,7 @@ import type { VpsJob } from "./src/queue/types";
 interface Env {
   VPS_QUEUE: Queue<VpsJob>;
   DISCORD_PUBLIC_KEY: string;
+  DISCORD_APPLICATION_ID: string;
   DISCORD_BOT_TOKEN: string;
   CONOHA_TENANT_ID: string;
   CONOHA_USERNAME: string;
