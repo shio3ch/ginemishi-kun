@@ -8,16 +8,17 @@ export async function notifyFollowup(
   content: string
 ): Promise<void> {
   const url = `${DISCORD_API}/webhooks/${env.DISCORD_APPLICATION_ID}/${job.interactionToken}/messages/@original`
-  await fetch(url, {
+  const res = await fetch(url, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ content }),
   })
+  if (!res.ok) throw new Error(`Discord followup failed: ${res.status} ${await res.text()}`)
 }
 
 export async function notifyChannel(env: Env, content: string): Promise<void> {
   const url = `${DISCORD_API}/channels/${env.DISCORD_NOTIFY_CHANNEL_ID}/messages`
-  await fetch(url, {
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -25,4 +26,5 @@ export async function notifyChannel(env: Env, content: string): Promise<void> {
     },
     body: JSON.stringify({ content }),
   })
+  if (!res.ok) throw new Error(`Discord channel notify failed: ${res.status} ${await res.text()}`)
 }

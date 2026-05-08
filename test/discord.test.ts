@@ -85,7 +85,12 @@ describe('notifyChannel', () => {
     await notifyChannel(envWithChannel, '⚠️ 起動しっぱなし警告')
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.stringContaining('/channels/ch-456/messages'),
-      expect.objectContaining({ method: 'POST' })
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bot bot-token',
+        }),
+      })
     )
     fetchSpy.mockRestore()
   })
