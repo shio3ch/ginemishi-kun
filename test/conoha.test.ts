@@ -7,6 +7,7 @@ import {
   deleteServer,
   getServerList,
 } from '../src/conoha/server'
+import { createImage, getImageStatus } from '../src/conoha/image'
 
 const mockEnv = {
   CONOHA_USERNAME: 'user',
@@ -154,5 +155,45 @@ describe('getServerList', () => {
     const result = await getServerList(envWithCompute, TOKEN)
     expect(result).toEqual(servers)
     expect(fetchSpy.mock.calls[0][0]).toContain('/servers/detail')
+  })
+})
+
+const IMAGE_ID = 'img-xyz'
+
+describe('createImage', () => {
+  beforeEach(() => { vi.restoreAllMocks() })
+
+  it('イメージを作成して ID を返す', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ image: { id: 'new-img-id' } }),
+        { status: 201 }
+      )
+    )
+    const envWithImage = {
+      ...mockEnv,
+      CONOHA_IMAGE_ENDPOINT: 'https://image.example.com',
+    } as unknown as Env
+    const id = await createImage(envWithImage, TOKEN, SERVER_ID)
+    expect(id).toBe('new-img-id')
+  })
+})
+
+describe('getImageStatus', () => {
+  beforeEach(() => { vi.restoreAllMocks() })
+
+  it('イメージのステータスを返す', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ image: { id: IMAGE_ID, status: 'active' } }),
+        { status: 200 }
+      )
+    )
+    const envWithImage = {
+      ...mockEnv,
+      CONOHA_IMAGE_ENDPOINT: 'https://image.example.com',
+    } as unknown as Env
+    const status = await getImageStatus(envWithImage, TOKEN, IMAGE_ID)
+    expect(status).toBe('active')
   })
 })
