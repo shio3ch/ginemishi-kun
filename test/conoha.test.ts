@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { getToken } from '../src/conoha/auth'
+import {
+  getServerStatus,
+  createServer,
+  stopServer,
+  deleteServer,
+  getServerList,
+} from '../src/conoha/server'
 
 const mockEnv = {
   CONOHA_USERNAME: 'user',
@@ -7,6 +14,9 @@ const mockEnv = {
   CONOHA_TENANT_ID: 'tenant-123',
   CONOHA_IDENTITY_ENDPOINT: 'https://identity.example.com/v2.0',
 } as unknown as Env
+
+const TOKEN = 'tok-test'
+const SERVER_ID = 'srv-abc'
 
 describe('getToken', () => {
   beforeEach(() => { vi.restoreAllMocks() })
@@ -47,5 +57,81 @@ describe('getToken', () => {
       new Response('Unauthorized', { status: 401 })
     )
     await expect(getToken(mockEnv)).rejects.toThrow('ConoHa auth failed: 401')
+  })
+})
+
+describe('getServerStatus', () => {
+  beforeEach(() => { vi.restoreAllMocks() })
+
+  it('サーバーのステータスを返す', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ server: { id: SERVER_ID, status: 'ACTIVE' } }),
+        { status: 200 }
+      )
+    )
+    const envWithCompute = {
+      ...mockEnv,
+      CONOHA_COMPUTE_ENDPOINT: 'https://compute.example.com/v2/tenant',
+    } as unknown as Env
+    const status = await getServerStatus(envWithCompute, TOKEN, SERVER_ID)
+    expect(status).toBe('ACTIVE')
+  })
+})
+
+describe('createServer', () => {
+  beforeEach(() => { vi.restoreAllMocks() })
+
+  it('サーバーを作成して ID を返す', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({ server: { id: 'new-srv-id' } }),
+        { status: 202 }
+      )
+    )
+    const envWithFlavor = {
+      ...mockEnv,
+      CONOHA_COMPUTE_ENDPOINT: 'https://compute.example.com/v2/tenant',
+      GAME_SERVER_IMAGE_ID: 'img-001',
+      GAME_SERVER_FLAVOR_ID: 'flv-001',
+    } as unknown as Env
+    const id = await createServer(envWithFlavor, TOKEN)
+    expect(id).toBe('new-srv-id')
+  })
+})
+
+describe('stopServer', () => {
+  beforeEach(() => { vi.restoreAllMocks() })
+
+  it('os-stop アクションを送信する', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('', { status: 202 })
+    )
+    const envWithCompute = {
+      ...mockEnv,
+      CONOHA_COMPUTE_ENDPOINT: 'https://compute.example.com/v2/tenant',
+    } as unknown as Env
+    await stopServer(envWithCompute, TOKEN, SERVER_ID)
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain(`/servers/${SERVER_ID}/action`)
+    expect(JSON.parse(init.body as string)).toEqual({ 'os-stop': null })
+  })
+})
+
+describe('deleteServer', () => {
+  beforeEach(() => { vi.restoreAllMocks() })
+
+  it('サーバー削除リクエストを送信する', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('', { status: 204 })
+    )
+    const envWithCompute = {
+      ...mockEnv,
+      CONOHA_COMPUTE_ENDPOINT: 'https://compute.example.com/v2/tenant',
+    } as unknown as Env
+    await deleteServer(envWithCompute, TOKEN, SERVER_ID)
+    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit]
+    expect(url).toContain(`/servers/${SERVER_ID}`)
+    expect((init as RequestInit).method).toBe('DELETE')
   })
 })
