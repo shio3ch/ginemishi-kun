@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { processStop } from '../src/statemachine/stop'
+import { processStart } from '../src/statemachine/start'
 import type { VpsJob } from '../src/queue/types'
 
 // ConoHa モジュールをモック
@@ -10,6 +11,7 @@ vi.mock('../src/conoha/server', () => ({
   stopServer: vi.fn().mockResolvedValue(undefined),
   getServerStatus: vi.fn(),
   deleteServer: vi.fn().mockResolvedValue(undefined),
+  createServer: vi.fn().mockResolvedValue('new-srv-id'),
 }))
 vi.mock('../src/conoha/image', () => ({
   createImage: vi.fn().mockResolvedValue('img-new'),
@@ -19,7 +21,7 @@ vi.mock('../src/discord/notify', () => ({
   notifyFollowup: vi.fn().mockResolvedValue(undefined),
 }))
 
-import { getServerStatus } from '../src/conoha/server'
+import { getServerStatus, createServer } from '../src/conoha/server'
 import { getImageStatus, createImage } from '../src/conoha/image'
 import { notifyFollowup } from '../src/discord/notify'
 
@@ -84,5 +86,56 @@ describe('processStop - deleting ステート', () => {
     const result = await processStop(mockEnv, makeJob('deleting'))
     expect(notifyFollowup).toHaveBeenCalledWith(mockEnv, expect.anything(), '✅ VPS を停止・保存・削除しました')
     expect(result).toEqual({ requeue: false })
+  })
+})
+
+describe('processStart - starting ステート', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('ACTIVE でない場合は { requeue: true, nextState: "starting" } を返す', async () => {
+    vi.mocked(getServerStatus).mockResolvedValue('BUILD')
+    const job: VpsJob = {
+      action: 'start',
+      state: 'starting',
+      serverId: 'srv-existing',
+      interactionToken: 'tok-test',
+      channelId: 'ch-test',
+      enqueuedAt: new Date().toISOString(),
+    }
+    const result = await processStart(mockEnv, job)
+    expect(result).toEqual({ requeue: true, nextState: 'starting' })
+  })
+
+  it('ACTIVE の場合は Discord 通知を送り { requeue: false } を返す', async () => {
+    vi.mocked(getServerStatus).mockResolvedValue('ACTIVE')
+    const job: VpsJob = {
+      action: 'start',
+      state: 'starting',
+      serverId: 'srv-existing',
+      interactionToken: 'tok-test',
+      channelId: 'ch-test',
+      enqueuedAt: new Date().toISOString(),
+    }
+    const result = await processStart(mockEnv, job)
+    expect(notifyFollowup).toHaveBeenCalledWith(
+      mockEnv,
+      expect.anything(),
+      expect.stringContaining('✅')
+    )
+    expect(result).toEqual({ requeue: false })
+  })
+
+  it('serverId がない場合はサーバーを新規作成する', async () => {
+    vi.mocked(getServerStatus).mockResolvedValue('BUILD')
+    const job: VpsJob = {
+      action: 'start',
+      state: 'starting',
+      interactionToken: 'tok-test',
+      channelId: 'ch-test',
+      enqueuedAt: new Date().toISOString(),
+    }
+    const result = await processStart(mockEnv, job)
+    expect(createServer).toHaveBeenCalled()
+    expect(result).toEqual({ requeue: true, nextState: 'starting' })
   })
 })
