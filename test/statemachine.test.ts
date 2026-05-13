@@ -12,6 +12,7 @@ vi.mock('../src/conoha/server', () => ({
   getServerStatus: vi.fn(),
   deleteServer: vi.fn().mockResolvedValue(undefined),
   createServer: vi.fn().mockResolvedValue('new-srv-id'),
+  getServerList: vi.fn().mockResolvedValue([{ id: 'srv-found', status: 'ACTIVE', created: new Date().toISOString() }]),
 }))
 vi.mock('../src/conoha/image', () => ({
   createImage: vi.fn().mockResolvedValue('img-new'),
@@ -21,7 +22,7 @@ vi.mock('../src/discord/notify', () => ({
   notifyFollowup: vi.fn().mockResolvedValue(undefined),
 }))
 
-import { getServerStatus, createServer } from '../src/conoha/server'
+import { getServerStatus, createServer, getServerList } from '../src/conoha/server'
 import { getImageStatus, createImage } from '../src/conoha/image'
 import { notifyFollowup } from '../src/discord/notify'
 
@@ -47,22 +48,38 @@ function makeJob(state: VpsJob['state'], overrides: Partial<VpsJob> = {}): VpsJo
  *   - SHUTOFF でない場合はステートを維持して再エンキューすること
  *   - SHUTOFF になった場合は imaging ステートへ遷移すること
  *   - 毎回ステータスを確認してから stopServer を呼ぶこと（冪等性）
+ *   - serverId が未設定の場合はサーバー一覧を検索して対象を特定すること（初回エンキュー時）
  */
 describe('processStop - stopping ステート', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
   /** ACTIVE のまま: まだシャットダウン中なので stopping を維持して再エンキュー */
-  it('SHUTOFF でない場合は { requeue: true, nextState: "stopping" } を返す', async () => {
+  it('SHUTOFF でない場合は serverId 付きで { requeue: true, nextState: "stopping" } を返す', async () => {
     vi.mocked(getServerStatus).mockResolvedValue('ACTIVE')
     const result = await processStop(mockEnv, makeJob('stopping'))
-    expect(result).toEqual({ requeue: true, nextState: 'stopping' })
+    expect(result).toEqual({ requeue: true, nextState: 'stopping', serverId: 'srv-test' })
   })
 
   /** SHUTOFF 確認: シャットダウン完了を検知したら次の imaging ステートへ遷移 */
-  it('SHUTOFF の場合は { requeue: true, nextState: "imaging" } を返す', async () => {
+  it('SHUTOFF の場合は serverId 付きで { requeue: true, nextState: "imaging" } を返す', async () => {
     vi.mocked(getServerStatus).mockResolvedValue('SHUTOFF')
     const result = await processStop(mockEnv, makeJob('stopping'))
-    expect(result).toEqual({ requeue: true, nextState: 'imaging' })
+    expect(result).toEqual({ requeue: true, nextState: 'imaging', serverId: 'srv-test' })
+  })
+
+  /** serverId なし（初回エンキュー）: getServerList で ACTIVE サーバーを検索して serverId を取得する */
+  it('serverId がない場合はサーバー一覧から対象を検索して stopping を継続する', async () => {
+    vi.mocked(getServerStatus).mockResolvedValue('ACTIVE')
+    const result = await processStop(mockEnv, makeJob('stopping', { serverId: undefined }))
+    expect(getServerList).toHaveBeenCalled()
+    expect(result).toEqual({ requeue: true, nextState: 'stopping', serverId: 'srv-found' })
+  })
+
+  /** serverId なし・サーバーなし: 停止対象が存在しない場合は Discord に通知して終了する */
+  it('serverId がなくサーバーも見つからない場合は { requeue: false } を返す', async () => {
+    vi.mocked(getServerList).mockResolvedValueOnce([])
+    const result = await processStop(mockEnv, makeJob('stopping', { serverId: undefined }))
+    expect(result).toEqual({ requeue: false })
   })
 })
 
